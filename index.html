@@ -1,0 +1,176 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Minha Lojinha</title>
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;600;700&family=Pacifico&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+:root{--bg:#fff7fa;--card:#fff;--ink:#4a3540;--mut:#8d7280;--p:#f7a8c4;--p2:#fde1ec;--pd:#d9628f;--ln:#f6d5e2}
+@media (prefers-color-scheme:dark){:root{--bg:#2a1d25;--card:#38262f;--ink:#fbe9f1;--mut:#c9a8b8;--p2:#4d3341;--ln:#5a3d4c}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 Quicksand,system-ui,sans-serif;padding-top:env(safe-area-inset-top,0px)}
+button,input,select,textarea{font:inherit;color:inherit}
+.wrap{max-width:980px;margin:0 auto;padding:0 14px 90px}
+.cover{height:170px;background:linear-gradient(135deg,#fbc2d8,#fde1ec 60%,#ffeef5) center/cover;border-radius:0 0 28px 28px}
+.prof{display:flex;gap:14px;align-items:flex-end;margin:-46px 10px 0;flex-wrap:wrap}
+.av{width:92px;height:92px;border-radius:50%;border:4px solid var(--bg);background:var(--p2) center/cover;display:grid;place-items:center;font-size:38px;flex:none}
+h1{font-family:Pacifico,cursive;font-weight:400;color:var(--pd);margin:0;font-size:1.7rem}
+.mut{color:var(--mut);font-size:.9rem}.nav{display:flex;gap:8px;margin:16px 0;flex-wrap:wrap;align-items:center}
+.btn{border:0;border-radius:999px;padding:10px 18px;background:var(--p);color:#5a2740;font-weight:700;cursor:pointer;transition:transform .15s,background .2s}
+.btn:hover{transform:translateY(-1px)}.btn:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--pd);outline-offset:2px}
+.btn.o{background:var(--p2);color:var(--ink)}.btn.on{background:var(--pd);color:#fff}.btn.sm{padding:6px 12px;font-size:.85rem}.btn:disabled{opacity:.5}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px}
+.card{background:var(--card);border:1px solid var(--ln);border-radius:22px;overflow:hidden}
+.ph{aspect-ratio:1;background:var(--p2) center/cover;display:grid;place-items:center;font-size:44px;cursor:pointer}
+.ci{padding:12px}.ci h3{margin:0;font-size:1.05rem}.price{color:var(--pd);font-weight:700;font-size:1.15rem}
+.tag{display:inline-block;background:var(--p2);border-radius:999px;padding:2px 10px;font-size:.78rem}.tag.no{background:#ffd6d6;color:#8a2a2a}
+input,select,textarea{width:100%;border:1.5px solid var(--ln);background:var(--card);border-radius:14px;padding:9px 12px;margin:4px 0}
+.q{display:flex;gap:6px;align-items:center;margin-top:8px}.q input{width:64px;text-align:center}
+.fab{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:5}
+#modal{position:fixed;inset:0;background:#4a354066;display:none;align-items:flex-end;justify-content:center;z-index:10}
+#modal.on{display:flex}.sheet{background:var(--bg);width:min(560px,100%);max-height:92vh;overflow:auto;border-radius:26px 26px 0 0;padding:18px}
+.row{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:6px 0;border-bottom:1px dashed var(--ln)}
+.box{background:var(--card);border:1px solid var(--ln);border-radius:18px;padding:12px;margin:10px 0}
+.bub{max-width:80%;padding:8px 12px;border-radius:16px;margin:4px 0;background:var(--p2)}.bub.me{margin-left:auto;background:var(--p);color:#5a2740}
+#ml{max-height:46vh;overflow:auto}.dot{background:var(--pd);color:#fff;border-radius:999px;padding:0 7px;font-size:.75rem;margin-left:4px}
+#toast{position:fixed;top:calc(10px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);background:var(--pd);color:#fff;padding:10px 18px;border-radius:999px;z-index:20;display:none;max-width:92vw}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style></head><body>
+<div id="toast"></div><div id="app"></div><div id="modal"></div>
+<script>
+/* ===== CONFIGURE AQUI (Supabase > Project Settings > API) ===== */
+const SUPABASE_URL='COLE_AQUI_A_PROJECT_URL', SUPABASE_KEY='COLE_AQUI_A_ANON_PUBLIC_KEY';
+/* ============================================================== */
+const E=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const R=n=>'R$ '+Number(n||0).toFixed(2).replace('.',',');
+const $=s=>document.querySelector(s);
+const ST=['recebido','em preparação','pronto','enviado','concluído'];
+const LINK=location.origin+location.pathname;
+const S={shop:{},prods:[],cart:{},tab:'loja',me:null,prof:null,admin:false,orders:[],msgs:[],names:{},vis:0,pv:{},chat:null,am:'in'};
+let SB;
+const U=s=>/^(https:\/\/|\/)/.test(s||'')?E(s):'';
+function toast(t){const e=$('#toast');e.textContent=t;e.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.display='none',4000)}
+function modal(h){const m=$('#modal');m.innerHTML=h?'<div class="sheet"><button class="btn sm o" data-act=close style="float:right" aria-label="Fechar">✕</button>'+h+'</div>':'';m.classList.toggle('on',!!h)}
+$('#modal').addEventListener('click',e=>{if(e.target.id==='modal')modal('')});
+const cartN=()=>Object.values(S.cart).reduce((a,b)=>a+b,0);
+const cartT=()=>S.prods.reduce((a,p)=>a+(S.cart[p.id]||0)*p.price,0);
+
+async function boot(){
+  if(SUPABASE_URL.startsWith('COLE')){$('#app').innerHTML='<div class=wrap><div class=box style="margin-top:40px">Falta configurar o Supabase no começo do arquivo index.html.</div></div>';return}
+  SB=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+  await loadPub();SB.from('visits').insert({}).then(()=>{});
+  SB.auth.onAuthStateChange((_e,s)=>{const u=s?.user||null;if((u?.id||null)!==(S.me?.id||null))setTimeout(()=>setUser(u),0)});
+  SB.channel('rt')
+   .on('postgres_changes',{event:'*',schema:'public',table:'products'},loadPub)
+   .on('postgres_changes',{event:'*',schema:'public',table:'orders'},p=>{if(S.admin&&p.eventType==='INSERT')toast('🛍️ Novo pedido recebido!');loadUser()})
+   .on('postgres_changes',{event:'INSERT',schema:'public',table:'messages'},p=>{const m=p.new;if(S.admin&&m.sender==='c')toast('💬 Nova mensagem de cliente');if(!S.admin&&m.sender==='s')toast('💬 A loja respondeu você!');loadUser()}).subscribe();
+}
+async function loadPub(){const [a,b]=await Promise.all([SB.from('shop').select('*').eq('id',1).maybeSingle(),SB.from('products').select('*').order('created_at',{ascending:false})]);S.shop=a.data||{};S.prods=b.data||[];draw()}
+async function setUser(u){
+  S.me=u;S.admin=false;S.prof=null;S.orders=[];S.msgs=[];S.chat=null;
+  if(u){const [p,a]=await Promise.all([SB.from('profiles').select('*').eq('id',u.id).maybeSingle(),SB.from('admins').select('user_id').eq('user_id',u.id).maybeSingle()]);S.prof=p.data;S.admin=!!a.data;await loadUser()}
+  if(S.tab==='admin'&&!S.admin)S.tab='loja';draw()
+}
+async function loadUser(){
+  if(!S.me)return;const q=[SB.from('messages').select('*').order('created_at')];
+  if(S.admin)q.push(SB.from('orders').select('*,order_items(*)').order('created_at',{ascending:false}),SB.from('profiles').select('id,name'),SB.from('visits').select('product_id').limit(20000));
+  const r=await Promise.all(q);S.msgs=r[0].data||[];
+  if(S.admin){S.orders=r[1].data||[];S.names={};(r[2].data||[]).forEach(x=>S.names[x.id]=x.name);const v=r[3].data||[];S.vis=v.filter(x=>!x.product_id).length;S.pv={};v.forEach(x=>x.product_id&&(S.pv[x.product_id]=(S.pv[x.product_id]||0)+1))}
+  draw()
+}
+const unread=()=>S.msgs.filter(m=>m.sender==='c'&&!m.seen).length;
+
+function draw(){
+  if(!SB)return;const keep=$('#mi')?.value||'',P=S.shop;
+  const nw=S.orders.filter(o=>o.status==='recebido').length,un=S.admin?unread():0;
+  const tabs=[['loja','🌷 Loja'],['chat','💬 Mensagens'+(un?`<span class=dot>${un}</span>`:'')]];if(S.admin)tabs.push(['admin','🔐 Painel'+(nw?`<span class=dot>${nw}</span>`:'')]);
+  const body=S.tab==='admin'&&S.admin?adminV():S.tab==='chat'?chatV():shopV();
+  $('#app').innerHTML=`<div class=wrap><div class=cover style="${U(P.cover)?`background-image:url(${U(P.cover)})`:''}"></div>
+  <div class=prof><div class=av style="${U(P.logo)?`background-image:url(${U(P.logo)})`:''}">${P.logo?'':'🌸'}</div>
+  <div style="flex:1;min-width:200px;padding-bottom:6px"><h1>${E(P.name||'Minha Lojinha')}</h1><div class=mut>${E(P.descr)}</div>
+  <div class=mut>${P.contact?'📞 '+E(P.contact):''} ${P.hours?'· 🕒 '+E(P.hours):''}</div></div></div>
+  <div class=nav>${tabs.map(t=>`<button class="btn ${S.tab===t[0]?'on':'o'}" data-act=tab data-v=${t[0]}>${t[1]}</button>`).join('')}
+  <span style="flex:1"></span>${S.me?`<span class=mut>Olá, ${E(S.prof?.name||'')}</span><button class="btn sm o" data-act=out>Sair</button>`:'<button class="btn sm" data-act=login>Entrar / Criar conta</button>'}</div>${body}</div>
+  ${S.tab==='loja'&&cartN()?`<button class="btn fab" data-act=cart>🛒 Carrinho (${cartN()}) · ${R(cartT())}</button>`:''}`;
+  if($('#mi'))$('#mi').value=keep;const m=$('#ml');if(m)m.scrollTop=1e9;
+  if(S.tab==='admin'&&S.admin&&window.QRCode){const q=$('#qr');q&&new QRCode(q,{text:LINK,width:160,height:160})}
+}
+function shopV(){
+  if(!S.prods.length)return '<div class=box>Ainda não há produtos por aqui. 🌸</div>';
+  return '<div class=grid>'+S.prods.map(p=>{const q=p.stock||0;
+  return `<div class=card><div class=ph data-act=view data-id=${p.id} style="${U(p.img)?`background-image:url(${U(p.img)})`:''}">${p.img?'':'🎀'}</div>
+  <div class=ci><h3>${E(p.name)}</h3><div class=mut>${E(p.descr)}</div><div class=price>${R(p.price)}</div>
+  <span class="tag ${q?'':'no'}">${q?q+' em estoque':'Esgotado'}</span>
+  ${q?`<div class=q><input type=number min=1 max=${q} value=1 id=n${p.id} aria-label="Quantidade"><button class="btn sm" data-act=add data-id=${p.id}>Adicionar</button></div>`:''}</div></div>`}).join('')+'</div>'
+}
+function authM(msg){const up=S.am==='up';modal(`<h2>${up?'Criar conta':'Entrar'}</h2><p class=mut>${E(msg||'')}</p>${up?'<input id=an placeholder="Seu nome *" autocomplete=name><input id=at placeholder="Telefone (opcional)" autocomplete=tel>':''}<input id=ae type=email placeholder="E-mail" autocomplete=email><input id=ap type=password placeholder="Senha (mínimo 6 caracteres)" autocomplete="${up?'new-password':'current-password'}"><button class=btn data-act=auth style="width:100%">${up?'Criar minha conta':'Entrar'}</button><p class=mut data-act=swap style="cursor:pointer;text-align:center">${up?'Já tenho conta · Entrar':'Primeira vez? Criar conta'}</p>`)}
+function cartM(){
+  if(!S.me)return authM('Para finalizar o pedido, entre ou crie sua conta 💕');
+  const it=S.prods.filter(p=>S.cart[p.id]);if(!it.length)return modal('<p>Seu carrinho está vazio 🌸</p>');
+  modal(`<h2>🛒 Seu pedido</h2>${it.map(p=>`<div class=row><span>${S.cart[p.id]}× ${E(p.name)}</span><span>${R(S.cart[p.id]*p.price)} <button class="btn sm o" data-act=rm data-id=${p.id}>✕</button></span></div>`).join('')}
+  <h3>Dados do pedido</h3><p class=mut>Em nome de <b>${E(S.prof?.name)}</b></p><input id=cp placeholder="WhatsApp / telefone" value="${E(S.prof?.phone)}">
+  <select id=cm><option value=retirada>Retirar no local</option><option value=entrega>Receber por entrega</option></select>
+  <input id=ca placeholder="Endereço completo" style="display:none">
+  <select id=cy>${(S.shop.pays||'Pix,Cartão,Dinheiro').split(',').map(x=>`<option>${E(x.trim())}</option>`).join('')}</select>
+  <div class=row><span>Produtos</span><b>${R(cartT())}</b></div><div class=row id=fr style="display:none"><span>Frete</span><b>${R(S.shop.delivery_fee)}</b></div>
+  <div class=row><span>Total</span><b class=price id=tt>${R(cartT())}</b></div>
+  ${S.shop.pix?`<p class=mut>Chave Pix: ${E(S.shop.pix)}. O pedido só é marcado como pago depois que a loja confirmar.</p>`:''}
+  <button class=btn data-act=buy style="width:100%">Confirmar pedido 💕</button>`);
+  $('#cm').onchange=e=>{const d=e.target.value==='entrega';$('#ca').style.display=d?'':'none';$('#fr').style.display=d?'':'none';$('#tt').textContent=R(cartT()+(d?+S.shop.delivery_fee||0:0))}
+}
+async function buy(){
+  const mode=$('#cm').value,end=$('#ca').value.trim(),tel=$('#cp').value.trim(),pay=$('#cy').value;
+  if(!tel||(mode==='entrega'&&!end))return toast('Preencha telefone e endereço 🌸');
+  const b=$('[data-act=buy]');b.disabled=true;const lines=S.prods.filter(p=>S.cart[p.id]).map(p=>({id:p.id,name:p.name,qty:S.cart[p.id],price:p.price}));
+  const {data,error}=await SB.rpc('place_order',{items:lines.map(l=>({id:l.id,qty:l.qty})),p_mode:mode,p_address:end,p_phone:tel,p_pay:pay});
+  if(error){toast(error.message);b.disabled=false;loadPub();return}
+  const o=(await SB.from('orders').select('total,fee').eq('id',data).single()).data||{};S.cart={};loadPub();loadUser();
+  modal(`<h2>🎉 Pedido confirmado!</h2><p>Obrigada, ${E(S.prof.name)}! Resumo:</p>${lines.map(i=>`<div class=row><span>${i.qty}× ${E(i.name)}</span><span>${R(i.qty*i.price)}</span></div>`).join('')}<div class=row><span>Frete</span><span>${R(o.fee)}</span></div><div class=row><b>Total</b><b class=price>${R(o.total)}</b></div><p class=mut>${mode==='entrega'?'Entrega em: '+E(end):'Retirada no local'} · Pagamento: ${E(pay)}. A loja confirmará o pagamento e avisará você.</p>`)
+}
+function chatV(){
+  if(!S.me)return '<div class=box>Entre para conversar com a loja 💬<br><br><button class=btn data-act=login>Entrar / Criar conta</button></div>';
+  const cid=S.admin?S.chat:S.me.id;let h='';
+  if(S.admin){const ids=[...new Set(S.msgs.map(m=>m.customer_id))].reverse();h='<b>Conversas</b>'+(ids.map(id=>{const un=S.msgs.some(m=>m.customer_id===id&&m.sender==='c'&&!m.seen);return `<div class=row><span>${un?'🔴 ':''}${E(S.names[id]||'Cliente')}</span><button class="btn sm o" data-act=thread data-id=${id}>Abrir</button></div>`}).join('')||'<p class=mut>Nenhuma conversa ainda.</p>')}
+  if(!cid)return `<div class=box>${h}</div>`;
+  const ms=S.msgs.filter(m=>m.customer_id===cid);
+  return `<div class=box>${h}${S.admin?`<hr><b>${E(S.names[cid]||'')}</b>`:''}<div id=ml>${ms.map(m=>`<div class="bub ${(S.admin?m.sender==='s':m.sender==='c')?'me':''}">${E(m.body)}</div>`).join('')||'<p class=mut>Pergunte sobre produtos, entrega e mais 🌸</p>'}</div><input id=mi placeholder="Escreva sua mensagem…" maxlength=1000><button class=btn data-act=send style="width:100%">Enviar 💌</button></div>`
+}
+function adminV(){
+  const sold={};S.orders.forEach(o=>(o.order_items||[]).forEach(i=>i.product_id&&(sold[i.product_id]=(sold[i.product_id]||0)+i.qty)));
+  const nm=id=>S.prods.find(p=>p.id===id)?.name||'(removido)',top=o=>Object.entries(o).sort((a,b)=>b[1]-a[1]).slice(0,5).map(x=>`${E(nm(x[0]))}: ${x[1]}`).join('<br>')||'—';
+  return `<div class=box><b>📈 Estatísticas</b><p>Acessos à loja: <b>${S.vis}</b></p><div class=grid><div><b>Mais vistos</b><br>${top(S.pv)}</div><div><b>Mais vendidos</b><br>${top(sold)}</div></div></div>
+  <div class=box><b>📱 QR Code da loja</b><div id=qr style="margin:10px 0;background:#fff;padding:8px;display:inline-block"></div><div class=mut style="word-break:break-all">${E(LINK)}</div></div>
+  <div class=box><b>🎀 Loja</b><div class=row><button class="btn sm" data-act=prof>Editar perfil e pagamento</button><button class="btn sm" data-act=edit data-id="">+ Novo produto</button></div></div>
+  <div class=box><b>🧸 Produtos</b>${S.prods.map(p=>`<div class=row><span>${E(p.name)} · ${R(p.price)} · estoque ${p.stock}</span><span><button class="btn sm o" data-act=edit data-id=${p.id}>Editar</button> <button class="btn sm o" data-act=del data-id=${p.id}>🗑</button></span></div>`).join('')||'<p class=mut>Cadastre seu primeiro produto.</p>'}</div>
+  <div class=box><b>📦 Pedidos</b>${S.orders.map(o=>`<div class=box><b>${E(o.customer)}</b> · ${E(o.phone)} <span class=tag>${E(o.mode)}</span><br>${(o.order_items||[]).map(i=>`${i.qty}× ${E(i.name)}`).join(', ')}<br>${o.mode==='entrega'?'📍 '+E(o.address)+'<br>':''}Total <b>${R(o.total)}</b> · ${E(o.pay)} · ${o.paid?'✅ pago':'⏳ aguardando pagamento'}<br>
+  <select data-act=status data-id=${o.id}>${ST.map(s=>`<option ${s===o.status?'selected':''}>${s}</option>`).join('')}</select>${o.paid?'':`<button class="btn sm" data-act=paid data-id=${o.id}>Confirmar pagamento</button>`}</div>`).join('')||'<p class=mut>Nenhum pedido ainda.</p>'}</div>`
+}
+function editM(id){const p=S.prods.find(x=>x.id===id)||{};S.eimg=p.img||'';
+  modal(`<h2>${id?'Editar':'Novo'} produto</h2><input id=en placeholder="Nome" value="${E(p.name)}"><textarea id=ed placeholder="Descrição">${E(p.descr)}</textarea><input id=ep type=number step=0.01 placeholder="Preço" value="${p.price??''}"><input id=eq type=number placeholder="Estoque" value="${p.stock??''}"><input id=ef type=file accept="image/*"><button class=btn data-act=saveP data-id="${id}" style="width:100%">Salvar</button>`)}
+function profM(){const P=S.shop;modal(`<h2>Perfil da loja</h2><input id=pn placeholder="Nome da loja" value="${E(P.name)}"><textarea id=pd placeholder="Descrição">${E(P.descr)}</textarea><input id=pc placeholder="Contato" value="${E(P.contact)}"><input id=ph placeholder="Horário de atendimento" value="${E(P.hours)}"><input id=pf type=number step=0.01 placeholder="Frete (R$)" value="${P.delivery_fee??''}"><input id=px placeholder="Chave Pix" value="${E(P.pix)}"><input id=py placeholder="Pagamentos (separe por vírgula)" value="${E(P.pays||'Pix,Cartão,Dinheiro')}"><label class=mut>Logo</label><input id=pl type=file accept="image/*"><label class=mut>Capa</label><input id=pv type=file accept="image/*"><button class=btn data-act=saveF style="width:100%">Salvar</button>`)}
+async function up(inp){const f=inp.files[0];if(!f)return null;const p=crypto.randomUUID()+'-'+f.name.replace(/[^\w.]/g,'_');const {error}=await SB.storage.from('imgs').upload(p,f);if(error){toast(error.message);return null}return SB.storage.from('imgs').getPublicUrl(p).data.publicUrl}
+const A={
+ tab:e=>{S.tab=e.dataset.v;draw()},close:()=>modal(''),login:()=>{S.am='in';authM()},swap:()=>{S.am=S.am==='up'?'in':'up';authM()},
+ out:()=>SB.auth.signOut(),cart:cartM,buy,
+ auth:async()=>{const up=S.am==='up',email=$('#ae').value.trim(),password=$('#ap').value;let r;
+  if(up){const name=$('#an').value.trim();if(name.length<2)return toast('Informe seu nome para criar a conta 🌸');
+   r=await SB.auth.signUp({email,password,options:{data:{name,phone:$('#at').value.trim()}}});
+   if(!r.error&&!r.data.session){modal('<h2>Quase lá! 💌</h2><p>Enviamos um e-mail de confirmação. Confirme e depois entre.</p>');return}}
+  else r=await SB.auth.signInWithPassword({email,password});
+  if(r.error)return toast(r.error.message);modal('')},
+ rm:e=>{delete S.cart[e.dataset.id];draw();cartM()},
+ add:e=>{const id=e.dataset.id,p=S.prods.find(x=>x.id===id),n=Math.max(1,parseInt($('#n'+id).value)||1);S.cart[id]=Math.min(p.stock,(S.cart[id]||0)+n);toast('Adicionado 🛒');draw()},
+ view:e=>{const p=S.prods.find(x=>x.id===e.dataset.id);SB.from('visits').insert({product_id:p.id}).then(()=>{});modal(`<h2>${E(p.name)}</h2>${U(p.img)?`<img src="${U(p.img)}" alt="" style="width:100%;border-radius:18px">`:''}<p>${E(p.descr)}</p><b class=price>${R(p.price)}</b>`)},
+ send:async()=>{const body=$('#mi').value.trim();if(!body)return;const cid=S.admin?S.chat:S.me.id;const {error}=await SB.from('messages').insert({customer_id:cid,sender:S.admin?'s':'c',body});if(error)return toast(error.message);$('#mi').value='';loadUser()},
+ thread:async e=>{S.chat=e.dataset.id;await SB.from('messages').update({seen:true}).eq('customer_id',S.chat).eq('sender','c');loadUser()},
+ edit:e=>editM(e.dataset.id),prof:profM,
+ del:async e=>{if(confirm('Excluir este produto?')){const r=await SB.from('products').delete().eq('id',e.dataset.id);if(r.error)toast(r.error.message)}},
+ paid:async e=>{await SB.from('orders').update({paid:true}).eq('id',e.dataset.id);loadUser()},
+ saveP:async e=>{const id=e.dataset.id,img=await up($('#ef'))||S.eimg,row={name:$('#en').value.trim(),descr:$('#ed').value,price:+$('#ep').value||0,stock:Math.max(0,parseInt($('#eq').value)||0),img};
+  if(!row.name)return toast('Informe o nome');const r=id?await SB.from('products').update(row).eq('id',id):await SB.from('products').insert(row);if(r.error)return toast(r.error.message);modal('');toast('Produto salvo 🌸');loadPub()},
+ saveF:async()=>{const P=S.shop,logo=await up($('#pl'))||P.logo||null,cover=await up($('#pv'))||P.cover||null;
+  const r=await SB.from('shop').update({name:$('#pn').value,descr:$('#pd').value,contact:$('#pc').value,hours:$('#ph').value,delivery_fee:+$('#pf').value||0,pix:$('#px').value,pays:$('#py').value,logo,cover}).eq('id',1);if(r.error)return toast(r.error.message);modal('');toast('Perfil salvo 🌸');loadPub()}
+};
+document.addEventListener('click',e=>{const t=e.target.closest('[data-act]');if(t&&t.tagName!=='SELECT'&&A[t.dataset.act])A[t.dataset.act](t)});
+document.addEventListener('change',async e=>{if(e.target.dataset.act==='status'){await SB.from('orders').update({status:e.target.value}).eq('id',e.target.dataset.id);loadUser()}});
+boot();
+</script></body></html>
